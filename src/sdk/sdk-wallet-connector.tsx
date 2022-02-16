@@ -20,7 +20,7 @@ export function SdkWalletConnector({ connector, children }: ConnectorComponentPr
 	} else if (conn.status === "initializing") {
 		return <p>Initializing...</p>
 	} else {
-		const sdk = createRaribleSdk(conn.connection.wallet, "staging")
+		const sdk = createRaribleSdk(conn.connection.wallet, "prod")
 		return (
 			<div>
 				{conn.disconnect && <button onClick={conn.disconnect}>disconnect</button>}
