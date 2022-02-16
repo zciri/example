@@ -2,8 +2,6 @@ import { NetworkType as TezosNetwork } from "@airgap/beacon-sdk"
 import Web3 from "web3"
 import { BlockchainWallet, FlowWallet, TezosWallet, EthereumWallet } from "@rarible/sdk-wallet"
 import { Web3Ethereum } from "@rarible/web3-ethereum"
-import type { TezosToolkit } from "@taquito/taquito"
-import type { BeaconWallet } from "@taquito/beacon-wallet"
 import {
 	Connector,
 	IConnectorStateProvider,
@@ -14,7 +12,7 @@ import {
 } from "@rarible/connector"
 import { FclConnectionProvider, FlowProviderConnectionResult } from "@rarible/connector-fcl"
 import { MEWConnectionProvider } from "@rarible/connector-mew"
-import { BeaconConnectionProvider } from "@rarible/connector-beacon"
+import { BeaconConnectionProvider, TezosProviderConnectionResult } from "@rarible/connector-beacon"
 import { TorusConnectionProvider } from "@rarible/connector-torus"
 import { WalletLinkConnectionProvider } from "@rarible/connector-walletlink"
 import { WalletConnectConnectionProvider } from "@rarible/connector-walletconnect"
@@ -48,6 +46,20 @@ function mapFlowWallet<O>(provider: AbstractConnectionProvider<O, FlowProviderCo
 	}))
 }
 
+function mapTezosWallet<O>(provider: AbstractConnectionProvider<O, TezosProviderConnectionResult>): ConnectionProvider<O, WalletAndAddress> {
+	return provider.map(async state => {
+		const {
+			beacon_provider: createBeaconProvider
+		} = await import("tezos-sdk-module/dist/providers/beacon/beacon_provider")
+		const provider = await createBeaconProvider(state.wallet as any, state.toolkit)
+
+		return {
+			wallet: new TezosWallet(provider),
+			address: state.address,
+		}
+	})
+}
+
 const injected = mapEthereumWallet(new InjectedWeb3ConnectionProvider())
 
 const mew = mapEthereumWallet(new MEWConnectionProvider({
@@ -55,24 +67,11 @@ const mew = mapEthereumWallet(new MEWConnectionProvider({
 	rpcUrl: ethereumRpcMap[4]
 }))
 
-const beacon: ConnectionProvider<"beacon", WalletAndAddress> = new BeaconConnectionProvider({
+const beacon: ConnectionProvider<"beacon", WalletAndAddress> = mapTezosWallet(new BeaconConnectionProvider({
 	appName: "Rarible Test",
 	accessNode: "https://tezos-hangzhou-node.rarible.org",
 	network: TezosNetwork.HANGZHOUNET
-}).map(async state => {
-	const provider = await createBeaconProvider(state.wallet, state.toolkit)
-	return {
-		wallet: new TezosWallet(provider),
-		address: state.address,
-	}
-})
-
-async function createBeaconProvider(beaconWallet: BeaconWallet, tezosToolkit: TezosToolkit) {
-	const { beacon_provider: createBeaconProvider } =
-		await import("tezos-sdk-module/dist/providers/beacon/beacon_provider")
-
-	return createBeaconProvider(beaconWallet as any, tezosToolkit as any)
-}
+}))
 
 const fcl = mapFlowWallet(new FclConnectionProvider({
 	accessNode: "https://access-testnet.onflow.org",
